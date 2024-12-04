@@ -1,6 +1,6 @@
 const { Player } = require('./Player');
 const { AudioPlayerStatus } = require('@discordjs/voice');
-
+const YouTube = require('youtube-sr').default;
 class Renai {
     constructor(client, options) {
         this.client = client;
@@ -13,7 +13,7 @@ class Renai {
     }
 
     async getPlayer(voiceChannel, textChannel) {
-        const key = `${voiceChannel.id}-${textChannel.id}`;
+        const key = `${voiceChannel.id}` || `${textChannel.id}`;
         if (!this.players.has(key)) {
             const player = new Player(voiceChannel, textChannel, this.options);
             this.players.set(key, player);
@@ -24,26 +24,17 @@ class Renai {
     async search(voiceChannel, textChannel, query) {
         try {
             const player = await this.getPlayer(voiceChannel, textChannel);
-            if (player.audioPlayer.state.status === AudioPlayerStatus.Idle) {
-                await player.search(query); // Play immediately if idle
-            } else {
-                player.queue.push(`https://www.youtube.com/watch?v=${query}`); // Add to queue if currently playing
-                textChannel.send(`Added to queue: ${query}`);
+            const searchResults = await YouTube.searchOne(query);
+            if (!searchResults) {
+                throw new Error('No results found');
             }
-        } catch (error) {
-            console.error('Error in search:', error);
-        }
-    }
-
-
-    async search(voiceChannel, textChannel, query) {
-        try {
-            const player = await this.getPlayer(voiceChannel, textChannel);
+            const video = searchResults;
+            const url = `https://www.youtube.com/watch?v=${video.id}`; 
             if (player.audioPlayer.state.status === AudioPlayerStatus.Idle) {
-                await player.search(query); // Play immediately if idle
+                await player.play(url); // Play immediately if idle
             } else {
-                player.queue.push(query); // Add to queue if currently playing
-                textChannel.send(`Added to queue: ${query}`);
+                player.queue.push({ title: video.title, url }); // Add to queue if currently playing
+                textChannel.send(`Added to queue: ${video.title} - ${url}`);
             }
         } catch (error) {
             console.error('Error in search:', error);
@@ -51,24 +42,22 @@ class Renai {
     }
 
     async queue(textChannel, voiceChannel) {
-        if (!voiceChannel) {
+        if (!voiceChannel || !voiceChannel.id) {
             return textChannel.send('You must be in a voice channel to view the queue.');
         }
     
-        const player = await this.getPlayer(voiceChannel, textChannel);
+        const player = await this.getPlayer(voiceChannel);
         
         if (player && player.queue.length > 0) {
-            const queueList = player.queue.map((url, index) => `${index + 1}. ${url}`).join('\n');
+            const queueList = player.queue.map((item, index) => `${index + 1}. ${item.title} - ${item.url}`).join('\n');
             textChannel.send(`Current Queue:\n${queueList}`);
         } else {
             textChannel.send('The queue is currently empty.');
         }
     }
-
     clearPlayer(voiceChannel, textChannel) {
         const key = `${voiceChannel.id}-${textChannel.id}`;
         this.players.delete(key);
     }
 }
-
 module.exports = { Renai };
