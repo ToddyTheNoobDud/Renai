@@ -16,13 +16,15 @@ class Player {
         });
         this.audioPlayer = createAudioPlayer();
         this.connection.subscribe(this.audioPlayer);
+
+        // Initialize the queue
         this.queue = [];
 
+        // Play the next song when the current one ends
         this.audioPlayer.on(AudioPlayerStatus.Idle, () => {
-            this.playNext(); 
+            this.playNext(); // Play the next song when idle
         });
     }
-
     async play(url) {
         try {
             const connection = new Connection(this, {
@@ -30,8 +32,8 @@ class Player {
                 apiURL: this.apiURL,
                 port: this.port || null
             });
-            const response = await this.fetchAudioData(connection.apiURL, url);
-            this.audioPlayer.play(createAudioResource(response.url));
+            const audioData = await this.fetchAudioData(connection.apiURL, url);
+            this.audioPlayer.play(createAudioResource(audioData));
         } catch (error) {
             console.error('Error in play:', error);
         }
@@ -39,8 +41,8 @@ class Player {
 
     async playNext() {
         if (this.queue.length > 0) {
-            const nextSong = this.queue.shift(); 
-            await this.play(nextSong);
+            const nextSong = this.queue.shift();
+            await this.play(nextSong.url); // Use the URL to play the next song
         } else {
             console.log('Queue is empty, nothing to play.');
         }
@@ -58,26 +60,31 @@ class Player {
         if (!response.ok) {
             throw new Error(`Failed to fetch audio data: ${response.statusText}`);
         }
-        return await response.json();
+        const data = await response.json();
+        return data.url; // Return only the URL
     }
 
     async search(query) {
         try {
-            const searchResults = await YouTube.search(query, { limit: 1 });
-            if (!searchResults.length) {
+            const searchResults = await YouTube.searchOne(query);
+            if (!searchResults) {
                 throw new Error('No results found');
             }
-            const video = searchResults[0];
-            this.queue.push(video.url); 
+            const video = searchResults;
+            const url = video.url;
+            const title = video.title;
+    
+            this.queue.push({ title, url });
+    
             if (this.audioPlayer.state.status === AudioPlayerStatus.Idle) {
-                await this.play(video.url); 
+                await this.play(url);
             } else {
-                console.log(`Added to queue: ${video.url}`);
+                console.log(`Added to queue: ${title} - ${url}`);
             }
         } catch (error) {
             console.error('Error in search:', error);
         }
     }
 }
-
 module.exports = { Player };
+
