@@ -6,6 +6,8 @@ class Connection {
         this.apiKey = options.apiKey || null;
         this.port = options.port || 9000;
         this.connected = false;
+        this.voiceChannel = null;
+        this.textChannel = null;
     }
 
     async fetchApi(endpoint, method = 'POST') {
@@ -17,7 +19,9 @@ class Connection {
             },
             body: JSON.stringify({
                 apiKey: this.apiKey,
-                port: this.port
+                port: this.port,
+                voiceChannel: this.voiceChannel?.id,
+                textChannel: this.textChannel?.id
             })
         });
 
@@ -26,8 +30,11 @@ class Connection {
         }
     }
 
-    async connect() {
+    async connect(voiceChannel, textChannel) {
         if (this.connected) return;
+
+        this.voiceChannel = voiceChannel;
+        this.textChannel = textChannel;
 
         await this.fetchApi('connect');
         this.connected = true;
