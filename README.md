@@ -8,7 +8,12 @@ Simple discord player that works with cobalt (https://cobalt.tools/)
 + Has memory leaks (oh my god!)
 + Own player system
 
-
+# Changelog 1.0.2
++ Added queue system
++ Made the code faster
++ Added some events and handling
++ Better search system and support
++ More memory leaks i forgot to fix
 # Example usage
 ```js
 const { Client, GatewayIntentBits, Partials } = require('discord.js');
@@ -30,33 +35,27 @@ const client = new Client({
 const renai = new Renai(client, {
     name: 'renai',
     apiURL: '',
-    port: 8888
+    port: 433
 })
 
 client.on('messageCreate', async message => {
     if (message.author.bot) return;
-
-    // Play command
     if (message.content.startsWith('!play')) {
         const args = message.content.split(' ');
         const query = args.slice(1).join(' ');
         const voiceChannel = message.member?.voice.channel;
         const textChannel = message.channel;
         if (voiceChannel) {
-            if (query.includes('https://') || query.includes('http://')) {
-                await renai.play(voiceChannel, textChannel, query);
-            } else {
                 await renai.search(voiceChannel,textChannel, query);
-            }
+            
         } else {
             message.channel.send('You must be in a voice channel to play music.');
         }
     }
 
-    // Queue command
     if (message.content.startsWith('!queue')) {
         const voiceChannel = message.member?.voice.channel; 
-        await renai.queue(message.channel, voiceChannel); // Pass both channels
+        await renai.queue(message.channel, voiceChannel)
     }
 });
 client.on('ready', () => {
